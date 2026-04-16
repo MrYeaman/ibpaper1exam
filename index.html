@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IB History Paper 1 - Secure Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            user-select: none;
+            -webkit-user-select: none;
+            background-color: #f8fafc;
+        }
+        #exam-area {
+            display: none;
+        }
+        .timer-warning {
+            animation: pulse 1s infinite;
+            color: #ef4444;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .source-box::-webkit-scrollbar {
+            width: 6px;
+        }
+        .source-box::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        textarea {
+            overflow: hidden;
+            min-height: 100px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- Pre-Exam Instructions -->
+    <div id="setup-screen" class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center border-t-8 border-red-700">
+        <div class="mb-4 flex justify-center">
+            <div class="bg-red-100 p-3 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-red-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+            </div>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">IB History Grade 11</h1>
+        <p class="text-sm font-semibold text-red-700 mb-6 uppercase tracking-widest">Paper 1: Source-based Case Study</p>
+        
+        <div class="mb-6 text-left">
+            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Full Student Name / ID</label>
+            <input type="text" id="student-id" class="w-full p-3 border-2 border-gray-100 rounded-lg focus:border-red-700 outline-none transition" placeholder="e.g. John Doe - 001234">
+        </div>
+
+        <div class="text-left bg-gray-50 p-4 rounded-lg mb-6 space-y-3">
+            <p class="text-sm text-gray-700 font-bold italic">Cloud & Security Enabled:</p>
+            <ul class="text-xs text-gray-600 space-y-2 leading-relaxed">
+                <li>• Work auto-saves to the central database every 30 seconds.</li>
+                <li>• <strong>Navigation Lock:</strong> Refreshing or closing the tab will trigger a warning and may terminate the session.</li>
+                <li>• Fullscreen and Lockdown active.</li>
+            </ul>
+        </div>
+
+        <button id="start-btn" class="w-full bg-red-700 hover:bg-red-800 text-white font-bold py-3 rounded-lg transition transform hover:scale-105 shadow-lg">
+            Connect & Begin Exam
+        </button>
+    </div>
+
+    <!-- Main Exam UI -->
+    <div id="exam-area" class="max-w-7xl w-full bg-white p-8 rounded-xl shadow-lg relative">
+        <div class="flex justify-between items-center mb-6 border-b pb-4 sticky top-0 bg-white z-10">
+            <div>
+                <h2 class="text-lg font-bold text-gray-800 uppercase tracking-tight">Paper 1: The Move to Global War</h2>
+                <p id="display-student-name" class="text-xs text-red-700 font-bold uppercase"></p>
+            </div>
+            <div id="timer-display" class="text-2xl font-mono font-bold bg-gray-100 px-6 py-2 rounded-lg border-2 border-gray-200">
+                60:00
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+            <!-- Source Material Column -->
+            <div class="lg:col-span-2 bg-gray-50 p-6 rounded-lg border border-gray-200 overflow-y-auto h-[65vh] source-box">
+                <h3 class="text-sm font-bold uppercase text-gray-400 mb-4 tracking-wider text-center">Resource Booklet</h3>
+                
+                <div class="mb-8">
+                    <p class="text-xs font-bold text-red-700 mb-1 underline">Source A: Map showing Japanese advancement into Manchuria, 1931.</p>
+                    <div class="bg-white border-2 border-dashed border-gray-300 h-48 flex items-center justify-center text-gray-400 text-xs italic p-4 text-center">
+                        [Graphic Source: Map illustrating the strategic rail lines and occupied territories in Northern China]
+                    </div>
+                </div>
+
+                <div class="mb-8">
+                    <p class="text-xs font-bold text-red-700 mb-1 underline">Source B: Excerpt from the Lytton Report, 1932.</p>
+                    <p class="text-sm italic text-gray-700 leading-relaxed bg-white p-4 rounded shadow-sm border-l-4 border-gray-300">
+                        "It is a fact that, without any declaration of war, a large area of what was indisputably the territory of a Member of the League has been forcibly seized and occupied by the armed forces of another Member..."
+                    </p>
+                </div>
+
+                <div class="mb-8">
+                    <p class="text-xs font-bold text-red-700 mb-1 underline">Source C: Political Cartoon from a British Newspaper, 1933.</p>
+                    <p class="text-sm italic text-gray-700 leading-relaxed bg-white p-4 rounded shadow-sm border-l-4 border-gray-300">
+                        "The League is shown as a toothless tiger, watching Japan walk away with the Manchurian 'prize'..."
+                    </p>
+                </div>
+            </div>
+
+            <!-- Response Column -->
+            <div id="question-container" class="lg:col-span-3 space-y-8 h-[65vh] overflow-y-auto pr-4 source-box">
+                
+                <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                    <div class="flex justify-between items-start mb-2">
+                        <label class="font-bold text-gray-800">Question 1a [3 Marks]</label>
+                        <span class="text-[10px] font-bold text-gray-400 uppercase bg-gray-100 px-2 py-1 rounded">Words: <span class="q-word-count">0</span></span>
+                    </div>
+                    <textarea data-qid="q1a" class="auto-expand w-full p-4 border rounded-md bg-slate-50 font-serif focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Write response here..."></textarea>
+                </div>
+
+                <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                    <div class="flex justify-between items-start mb-2">
+                        <label class="font-bold text-gray-800">Question 1b [2 Marks]</label>
+                        <span class="text-[10px] font-bold text-gray-400 uppercase bg-gray-100 px-2 py-1 rounded">Words: <span class="q-word-count">0</span></span>
+                    </div>
+                    <textarea data-qid="q1b" class="auto-expand w-full p-4 border rounded-md bg-slate-50 font-serif focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Write response here..."></textarea>
+                </div>
+
+                <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                    <div class="flex justify-between items-start mb-2">
+                        <label class="font-bold text-gray-800">Question 2 [4 Marks]</label>
+                        <span class="text-[10px] font-bold text-gray-400 uppercase bg-gray-100 px-2 py-1 rounded">Words: <span class="q-word-count">0</span></span>
+                    </div>
+                    <textarea data-qid="q2" class="auto-expand w-full p-4 border rounded-md bg-slate-50 font-serif focus:ring-2 focus:ring-red-400 outline-none" placeholder="OPVL Analysis..."></textarea>
+                </div>
+
+                <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                    <div class="flex justify-between items-start mb-2">
+                        <label class="font-bold text-gray-800">Question 3 [6 Marks]</label>
+                        <span class="text-[10px] font-bold text-gray-400 uppercase bg-gray-100 px-2 py-1 rounded">Words: <span class="q-word-count">0</span></span>
+                    </div>
+                    <textarea data-qid="q3" class="auto-expand w-full p-4 border rounded-md bg-slate-50 font-serif focus:ring-2 focus:ring-red-400 outline-none" placeholder="Compare and contrast..."></textarea>
+                </div>
+
+                <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                    <div class="flex justify-between items-start mb-2">
+                        <label class="font-bold text-gray-800">Question 4 [9 Marks]</label>
+                        <span class="text-[10px] font-bold text-gray-400 uppercase bg-gray-100 px-2 py-1 rounded">Words: <span class="q-word-count">0</span></span>
+                    </div>
+                    <textarea data-qid="q4" class="auto-expand w-full p-4 border rounded-md bg-slate-50 font-serif focus:ring-2 focus:ring-red-700 outline-none" placeholder="Synthesis essay..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-6 flex justify-between items-center border-t pt-4">
+            <div class="flex gap-6 text-xs font-bold uppercase tracking-widest">
+                <div class="text-gray-400">Total Paper Words: <span id="total-word-count" class="text-red-700 text-sm">0</span></div>
+                <div id="save-status" class="text-gray-400 italic">Cloud Synchronized</div>
+            </div>
+            <button id="submit-btn" class="bg-red-800 hover:bg-black text-white px-12 py-3 rounded font-bold transition shadow-lg">
+                Finalize & Submit Paper
+            </button>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="confirm-modal" class="fixed inset-0 bg-gray-900 bg-opacity-80 z-[60] hidden flex items-center justify-center p-6">
+        <div class="bg-white p-8 rounded-xl max-w-md w-full text-center shadow-2xl border-t-8 border-yellow-500">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Final Submission?</h2>
+            <p class="text-gray-600 mb-6 italic">Responses will be saved to the classroom spreadsheet instantly.</p>
+            <div class="flex gap-4">
+                <button id="back-to-exam" class="flex-1 bg-gray-200 py-3 rounded-lg font-bold">Back</button>
+                <button id="confirm-final-submit" class="flex-1 bg-red-700 text-white py-3 rounded-lg font-bold">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Final Overlay -->
+    <div id="overlay" class="fixed inset-0 bg-black bg-opacity-95 z-[70] hidden flex items-center justify-center p-6 text-center">
+        <div class="bg-white p-10 rounded-xl max-w-sm w-full">
+            <h2 id="overlay-title" class="text-2xl font-bold mb-2">Paper Submitted</h2>
+            <p id="overlay-msg" class="text-gray-600 mb-8"></p>
+            <p class="text-xs text-gray-400 mb-4">Transaction ID: <span id="transaction-id"></span></p>
+            <button onclick="location.reload()" class="w-full bg-red-50 text-red-700 py-3 rounded font-bold">Close Portal</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+  apiKey: "AIzaSyCSNhgsM-UXpe8XmsW2hj4lAHD3TW6bg7w",
+  authDomain: "ib-paper-1-exams.firebaseapp.com",
+  projectId: "ib-paper-1-exams",
+  storageBucket: "ib-paper-1-exams.firebasestorage.app",
+  messagingSenderId: "452822797263",
+  appId: "1:452822797263:web:f74698a79ed6692c7720ba"
+};
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'ib-history-portal';
+
+        // UI Elements
+        const startBtn = document.getElementById('start-btn');
+        const setupScreen = document.getElementById('setup-screen');
+        const examArea = document.getElementById('exam-area');
+        const textareas = document.querySelectorAll('.auto-expand');
+        const overlay = document.getElementById('overlay');
+        const confirmModal = document.getElementById('confirm-modal');
+        const timerDisplay = document.getElementById('timer-display');
+        const totalWordCountDisplay = document.getElementById('total-word-count');
+        const saveStatus = document.getElementById('save-status');
+        const studentIdInput = document.getElementById('student-id');
+
+        let isExamActive = false;
+        let isModalOpen = false;
+        let timeLeft = 60 * 60; 
+        let timerInterval;
+        let user = null;
+
+        // Auth
+        onAuthStateChanged(auth, (u) => { user = u; });
+        async function initAuth() {
+            if (!auth.currentUser) await signInAnonymously(auth);
+        }
+
+        // Auto-Save Logic
+        async function cloudSave(reason = "Auto-save") {
+            if (!isExamActive || !user) return;
+            
+            saveStatus.innerText = "Saving to Cloud...";
+            const examData = {
+                studentName: studentIdInput.value || "Anonymous",
+                timestamp: serverTimestamp(),
+                timeLeft: timeLeft,
+                totalWords: totalWordCountDisplay.innerText,
+                status: reason,
+                responses: {}
+            };
+
+            textareas.forEach(ta => {
+                examData.responses[ta.dataset.qid] = ta.value;
+            });
+
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'submissions', user.uid), examData);
+                saveStatus.innerText = "Cloud Synchronized";
+            } catch (e) {
+                saveStatus.innerText = "Offline - Check Connection";
+                console.error("Save error", e);
+            }
+        }
+
+        // Start Exam
+        startBtn.addEventListener('click', async () => {
+            if (!studentIdInput.value.trim()) {
+                alert("Please enter your Name or Student ID before starting.");
+                return;
+            }
+
+            await initAuth();
+            document.documentElement.requestFullscreen().then(() => {
+                setupScreen.style.display = 'none';
+                examArea.style.display = 'block';
+                document.getElementById('display-student-name').innerText = studentIdInput.value;
+                isExamActive = true;
+                startTimer();
+                cloudSave("Exam Started");
+                setInterval(() => cloudSave("Periodic Auto-save"), 30000);
+            }).catch(() => alert("Fullscreen required."));
+        });
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                if (isModalOpen) return;
+                timeLeft--;
+                const mins = Math.floor(timeLeft / 60);
+                const secs = timeLeft % 60;
+                timerDisplay.innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+                if (timeLeft <= 0) forceSubmit("Time Expired");
+            }, 1000);
+        }
+
+        // --- REFRESH / NAVIGATION WARNING ---
+        window.addEventListener('beforeunload', (e) => {
+            if (isExamActive) {
+                // Emergency save attempt
+                cloudSave("Emergency Save: Refresh Attempt");
+                // Standard browser warning
+                const message = "You have an active exam session. Your progress might be lost if you leave.";
+                e.returnValue = message;
+                return message;
+            }
+        });
+
+        // UI Handlers
+        textareas.forEach(el => {
+            const countDisplay = el.closest('div').querySelector('.q-word-count');
+            el.addEventListener('input', () => {
+                el.style.height = 'auto';
+                el.style.height = (el.scrollHeight) + 'px';
+                const words = el.value.trim().split(/\s+/).filter(w => w.length > 0);
+                countDisplay.innerText = words.length;
+                updateTotalWordCount();
+            });
+        });
+
+        function updateTotalWordCount() {
+            let totalWords = 0;
+            textareas.forEach(el => {
+                const words = el.value.trim().split(/\s+/).filter(w => w.length > 0);
+                totalWords += words.length;
+            });
+            totalWordCountDisplay.innerText = totalWords;
+        }
+
+        // Security
+        document.addEventListener('visibilitychange', () => { if (document.hidden && isExamActive) forceSubmit("Tab Switch"); });
+        document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && isExamActive) forceSubmit("Lockdown Exit"); });
+
+        // Submit logic
+        document.getElementById('submit-btn').addEventListener('click', () => { isModalOpen = true; confirmModal.classList.remove('hidden'); });
+        document.getElementById('back-to-exam').addEventListener('click', () => { isModalOpen = false; confirmModal.classList.add('hidden'); });
+        document.getElementById('confirm-final-submit').addEventListener('click', () => forceSubmit("Manual Submission"));
+
+        async function forceSubmit(reason) {
+            if (!isExamActive) return;
+            isExamActive = false;
+            isModalOpen = false;
+            clearInterval(timerInterval);
+            confirmModal.classList.add('hidden');
+
+            await cloudSave(`FINAL: ${reason}`);
+
+            document.getElementById('overlay-title').innerText = reason === "Manual Submission" ? "Success" : "Violation Triggered";
+            document.getElementById('overlay-msg').innerText = reason === "Manual Submission" ? "Your paper is saved in the class spreadsheet." : `Exam terminated: ${reason}`;
+            document.getElementById('transaction-id').innerText = user ? user.uid : "ERR-OFFLINE";
+            overlay.classList.remove('hidden');
+            if (document.fullscreenElement) document.exitFullscreen();
+        }
+
+        // Plagiarism block
+        ['copy', 'paste', 'contextmenu'].forEach(evt => document.addEventListener(evt, e => e.preventDefault()));
+    </script>
+</body>
+</html>
