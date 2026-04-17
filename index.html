@@ -59,7 +59,7 @@
             <p class="text-sm text-gray-700 font-bold italic">Cloud & Security Enabled:</p>
             <ul class="text-xs text-gray-600 space-y-2 leading-relaxed">
                 <li>• Work auto-saves to the central database every 30 seconds.</li>
-                <li>• <strong>Navigation Lock:</strong> Refreshing or closing the tab will trigger a warning and may terminate the session.</li>
+                <li>• <strong>Session Tracking:</strong> Every exam attempt is recorded as a unique entry.</li>
                 <li>• Fullscreen and Lockdown active.</li>
             </ul>
         </div>
@@ -181,7 +181,7 @@
         <div class="bg-white p-10 rounded-xl max-w-sm w-full">
             <h2 id="overlay-title" class="text-2xl font-bold mb-2">Paper Submitted</h2>
             <p id="overlay-msg" class="text-gray-600 mb-8"></p>
-            <p class="text-xs text-gray-400 mb-4">Transaction ID: <span id="transaction-id"></span></p>
+            <p class="text-xs text-gray-400 mb-4">Session ID: <span id="transaction-id"></span></p>
             <button onclick="location.reload()" class="w-full bg-red-50 text-red-700 py-3 rounded font-bold">Close Portal</button>
         </div>
     </div>
@@ -191,14 +191,16 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // --- FIREBASE CONFIG (Successfully Updated) ---
         const firebaseConfig = {
-  apiKey: "AIzaSyCSNhgsM-UXpe8XmsW2hj4lAHD3TW6bg7w",
-  authDomain: "ib-paper-1-exams.firebaseapp.com",
-  projectId: "ib-paper-1-exams",
-  storageBucket: "ib-paper-1-exams.firebasestorage.app",
-  messagingSenderId: "452822797263",
-  appId: "1:452822797263:web:f74698a79ed6692c7720ba"
-};
+            apiKey: "AIzaSyCSNhgsM-UXpe8XmsW2hj4lAHD3TW6bg7w",
+            authDomain: "ib-paper-1-exams.firebaseapp.com",
+            projectId: "ib-paper-1-exams",
+            storageBucket: "ib-paper-1-exams.firebasestorage.app",
+            messagingSenderId: "452822797263",
+            appId: "1:452822797263:web:f74698a79ed6692c7720ba"
+        };
+
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
@@ -221,6 +223,7 @@
         let timeLeft = 60 * 60; 
         let timerInterval;
         let user = null;
+        let currentSessionId = null;
 
         // Auth
         onAuthStateChanged(auth, (u) => { user = u; });
@@ -230,9 +233,10 @@
 
         // Auto-Save Logic
         async function cloudSave(reason = "Auto-save") {
-            if (!isExamActive || !user) return;
+            if (!isExamActive || !user || !currentSessionId) return;
             
             saveStatus.innerText = "Saving to Cloud...";
+            
             const examData = {
                 studentName: studentIdInput.value || "Anonymous",
                 timestamp: serverTimestamp(),
@@ -247,7 +251,7 @@
             });
 
             try {
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'submissions', user.uid), examData);
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'submissions', currentSessionId), examData);
                 saveStatus.innerText = "Cloud Synchronized";
             } catch (e) {
                 saveStatus.innerText = "Offline - Check Connection";
@@ -263,6 +267,8 @@
             }
 
             await initAuth();
+            currentSessionId = `${studentIdInput.value.replace(/[^a-z0-t0-9]/gi, '_')}_${Date.now()}`;
+
             document.documentElement.requestFullscreen().then(() => {
                 setupScreen.style.display = 'none';
                 examArea.style.display = 'block';
@@ -285,13 +291,11 @@
             }, 1000);
         }
 
-        // --- REFRESH / NAVIGATION WARNING ---
+        // Refresh Warning
         window.addEventListener('beforeunload', (e) => {
             if (isExamActive) {
-                // Emergency save attempt
                 cloudSave("Emergency Save: Refresh Attempt");
-                // Standard browser warning
-                const message = "You have an active exam session. Your progress might be lost if you leave.";
+                const message = "Active exam session. Progress may be lost.";
                 e.returnValue = message;
                 return message;
             }
@@ -322,7 +326,7 @@
         document.addEventListener('visibilitychange', () => { if (document.hidden && isExamActive) forceSubmit("Tab Switch"); });
         document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && isExamActive) forceSubmit("Lockdown Exit"); });
 
-        // Submit logic
+        // Submit
         document.getElementById('submit-btn').addEventListener('click', () => { isModalOpen = true; confirmModal.classList.remove('hidden'); });
         document.getElementById('back-to-exam').addEventListener('click', () => { isModalOpen = false; confirmModal.classList.add('hidden'); });
         document.getElementById('confirm-final-submit').addEventListener('click', () => forceSubmit("Manual Submission"));
@@ -338,12 +342,11 @@
 
             document.getElementById('overlay-title').innerText = reason === "Manual Submission" ? "Success" : "Violation Triggered";
             document.getElementById('overlay-msg').innerText = reason === "Manual Submission" ? "Your paper is saved in the class spreadsheet." : `Exam terminated: ${reason}`;
-            document.getElementById('transaction-id').innerText = user ? user.uid : "ERR-OFFLINE";
+            document.getElementById('transaction-id').innerText = currentSessionId;
             overlay.classList.remove('hidden');
             if (document.fullscreenElement) document.exitFullscreen();
         }
 
-        // Plagiarism block
         ['copy', 'paste', 'contextmenu'].forEach(evt => document.addEventListener(evt, e => e.preventDefault()));
     </script>
 </body>
