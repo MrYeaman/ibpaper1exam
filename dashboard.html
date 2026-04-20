@@ -18,13 +18,10 @@
     <header class="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-end border-b border-slate-800 pb-6 gap-4">
         <div>
             <h1 class="text-3xl font-bold text-white tracking-tight">Exam Control Tower</h1>
-            <p class="text-slate-500 font-medium tracking-wide">IB History Paper 1: Live Monitoring</p>
+            <p class="text-slate-500 font-medium tracking-wide">IB History Paper 1: Assessment Mode</p>
         </div>
         <div class="flex gap-4">
-            <button id="export-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg font-bold transition flex items-center gap-2 shadow-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-                </svg>
+            <button id="export-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg font-bold transition flex items-center gap-2 shadow-lg text-sm">
                 Export CSV
             </button>
             <div class="bg-slate-900 px-6 py-2 rounded-lg border border-slate-800 text-center">
@@ -35,16 +32,11 @@
     </header>
 
     <main class="max-w-7xl mx-auto">
-        <div id="student-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div class="col-span-full py-20 text-center text-slate-600 font-mono">
-                INITIALIZING SECURE LINK TO FIREBASE...
-            </div>
-        </div>
+        <div id="student-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
     </main>
 
-    <!-- Detailed View Modal -->
     <div id="view-modal" class="fixed inset-0 bg-black/90 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white text-slate-900 w-full max-w-5xl h-[90vh] rounded-2xl overflow-hidden flex flex-col shadow-2xl">
+        <div class="bg-white text-slate-900 w-full max-w-6xl h-[92vh] rounded-2xl overflow-hidden flex flex-col shadow-2xl">
             <div class="p-6 border-b flex justify-between items-center bg-slate-50">
                 <div>
                     <h2 id="modal-student-name" class="text-2xl font-bold text-slate-800 tracking-tight">Student Name</h2>
@@ -52,11 +44,32 @@
                 </div>
                 <button id="close-modal" class="text-3xl font-light text-slate-400 hover:text-red-500 transition-colors">&times;</button>
             </div>
-            <div id="modal-content" class="p-8 overflow-y-auto space-y-10 font-serif text-lg leading-relaxed bg-white">
-                <!-- Response content will be injected here -->
-            </div>
-            <div class="p-4 bg-slate-50 border-t text-right">
-                <button id="close-modal-btn" class="bg-slate-800 text-white px-8 py-2 rounded-lg font-bold hover:bg-slate-700 transition">Close Preview</button>
+            
+            <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+                <!-- Response View -->
+                <div id="modal-content" class="flex-1 p-8 overflow-y-auto space-y-10 font-serif text-lg leading-relaxed bg-white border-r"></div>
+                
+                <!-- Assessment Sidebar -->
+                <div class="w-full md:w-96 bg-slate-50 p-6 flex flex-col border-t md:border-t-0 overflow-y-auto">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">Post-Exam Assessment</h3>
+                    
+                    <div class="mb-4">
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Final Score (/24)</label>
+                        <input type="number" id="grade-input" class="w-full p-3 border rounded-xl text-xl font-bold focus:ring-2 focus:ring-red-500 outline-none" placeholder="0">
+                    </div>
+
+                    <div class="flex-1 flex flex-col min-min-h-[200px]">
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Teacher Feedback & Guidance</label>
+                        <textarea id="feedback-input" class="flex-1 w-full p-4 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none mb-4" placeholder="Provide detailed feedback for the student to see when they log back in..."></textarea>
+                    </div>
+
+                    <button id="send-feedback-btn" class="w-full bg-red-700 text-white font-bold py-4 rounded-xl hover:bg-red-800 transition shadow-lg uppercase tracking-widest text-sm">Save & Send Assessment</button>
+                    <p id="feedback-status" class="text-[10px] text-center mt-3 text-slate-400 italic"></p>
+                    
+                    <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                        <p class="text-[10px] text-blue-600 font-bold leading-tight italic">Students will see this feedback the next time they open their portal.</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -64,7 +77,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, query, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, query, onSnapshot, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCSNhgsM-UXpe8XmsW2hj4lAHD3TW6bg7w",
@@ -79,140 +92,91 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         const appId = 'ib-history-portal';
-
         let allData = [];
+        let currentOpenStudentId = null;
 
         async function init() {
-            try {
-                await signInAnonymously(auth);
-                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'submissions'));
-                
-                onSnapshot(q, (snapshot) => {
-                    allData = [];
-                    snapshot.forEach(doc => {
-                        allData.push({ id: doc.id, ...doc.data() });
-                    });
-                    renderDashboard();
-                }, (error) => {
-                    console.error("Firestore error:", error);
-                    document.getElementById('student-grid').innerHTML = `<div class="col-span-full text-red-500">Error connecting to database.</div>`;
-                });
-            } catch (err) {
-                console.error("Auth failed", err);
-            }
+            await signInAnonymously(auth);
+            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'submissions'));
+            onSnapshot(q, (snapshot) => {
+                allData = [];
+                snapshot.forEach(doc => allData.push({ id: doc.id, ...doc.data() }));
+                renderDashboard();
+            });
         }
 
         function renderDashboard() {
             const grid = document.getElementById('student-grid');
             document.getElementById('active-count').innerText = allData.length;
-            
-            if (allData.length === 0) {
-                grid.innerHTML = `<div class="col-span-full text-center py-20 text-slate-700 border-2 border-dashed border-slate-900 rounded-xl">Waiting for students to join...</div>`;
-                return;
-            }
-
             grid.innerHTML = '';
-            // Sort by latest timestamp (most recent at top)
-            allData.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
+            
+            allData.sort((a, b) => (a.studentName || '').localeCompare(b.studentName || ''));
 
             allData.forEach(student => {
-                const status = student.status || 'Active';
-                const isFinal = status.includes('FINAL');
-                const isViolation = status.includes('Violation');
-                const lastSync = student.timestamp ? new Date(student.timestamp.toMillis()).toLocaleTimeString() : '--:--';
-                
+                const isFinal = (student.status || '').includes('FINAL');
+                const hasGrade = student.finalGrade !== undefined;
                 const card = document.createElement('div');
-                card.className = `p-6 rounded-xl border transition-all duration-300 cursor-pointer shadow-lg hover:scale-[1.02] ${isViolation ? 'bg-red-950/40 border-red-500' : (isFinal ? 'bg-emerald-950/40 border-emerald-500' : 'bg-slate-900 border-slate-800 hover:border-blue-500')}`;
-                
+                card.className = `p-6 rounded-xl border transition-all cursor-pointer ${hasGrade ? 'bg-slate-800 border-emerald-500' : 'bg-slate-900 border-slate-800'} hover:border-blue-500`;
                 card.innerHTML = `
-                    <div class="flex justify-between items-start mb-4">
-                        <div class="max-w-[70%]">
-                            <h3 class="font-bold text-lg text-white truncate">${student.studentName || 'Anonymous'}</h3>
-                            <p class="text-[9px] text-slate-500 font-mono mt-1">${student.id}</p>
-                        </div>
-                        <span class="px-2 py-1 rounded text-[10px] font-black uppercase tracking-tighter ${isFinal ? 'bg-emerald-500 text-white' : 'bg-blue-600 text-white'}">
-                            ${isFinal ? 'Submitted' : 'Typing...'}
+                    <div class="flex justify-between items-start">
+                        <h3 class="font-bold text-white truncate">${student.studentName || 'Anonymous'}</h3>
+                        <span class="text-[10px] font-black uppercase ${hasGrade ? 'bg-emerald-600' : 'bg-blue-600'} px-2 py-1 rounded">
+                            ${hasGrade ? 'Graded: ' + student.finalGrade + '/24' : student.totalWords + ' Words'}
                         </span>
                     </div>
-                    
-                    <div class="grid grid-cols-2 gap-3 mb-4">
-                        <div class="bg-black/40 p-3 rounded border border-slate-800">
-                            <p class="text-[9px] text-slate-500 uppercase font-black leading-none mb-1">Words</p>
-                            <p class="text-xl font-mono font-bold text-white">${student.totalWords || 0}</p>
-                        </div>
-                        <div class="bg-black/40 p-3 rounded border border-slate-800">
-                            <p class="text-[9px] text-slate-500 uppercase font-black leading-none mb-1">Last Sync</p>
-                            <p class="text-[11px] font-mono font-bold text-blue-300 mt-1">${lastSync}</p>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center justify-between text-[11px] font-bold">
-                        <div class="flex items-center gap-2">
-                            <div class="h-2 w-2 rounded-full ${isFinal ? 'bg-slate-600' : 'bg-green-500 status-pulse'}"></div>
-                            <span class="${isViolation ? 'text-red-400' : 'text-slate-400'} uppercase tracking-widest truncate max-w-[120px]">${status}</span>
-                        </div>
-                        <span class="text-slate-500">${Math.floor((student.timeLeft || 3600) / 60)}m left</span>
-                    </div>
+                    <p class="text-[10px] text-slate-500 mt-2 uppercase tracking-widest">${student.status || 'Active'}</p>
                 `;
-
                 card.onclick = () => openModal(student);
                 grid.appendChild(card);
             });
         }
 
         function openModal(student) {
+            currentOpenStudentId = student.id;
             const modal = document.getElementById('view-modal');
             const content = document.getElementById('modal-content');
             document.getElementById('modal-student-name').innerText = student.studentName;
+            document.getElementById('feedback-input').value = student.teacherFeedback || "";
+            document.getElementById('grade-input').value = student.finalGrade || "";
+            document.getElementById('feedback-status').innerText = "";
             document.getElementById('modal-meta').innerText = `Session: ${student.id} | Status: ${student.status}`;
             
             content.innerHTML = '';
-            const labels = {
-                q1a: "Question 1a: Document Analysis [3m]",
-                q1b: "Question 1b: Cartoon/Map Message [2m]",
-                q2: "Question 2: OPVL Evaluation [4m]",
-                q3: "Question 3: Compare & Contrast [6m]",
-                q4: "Question 4: Synthesis Essay [9m]"
-            };
-
+            const labels = { q1a: "Question 1a", q1b: "Question 1b", q2: "Question 2", q3: "Question 3", q4: "Question 4" };
             Object.entries(labels).forEach(([qid, label]) => {
                 const text = student.responses?.[qid] || '';
-                const wordCount = text.trim().split(/\s+/).filter(w => w.length > 0).length;
-                
-                const section = document.createElement('div');
-                section.className = "mb-10 pb-6 border-b border-slate-100 last:border-0";
-                section.innerHTML = `
-                    <div class="flex justify-between items-center mb-4">
-                        <h4 class="text-blue-800 text-xs font-black uppercase tracking-widest">${label}</h4>
-                        <span class="text-[11px] font-bold text-slate-400 font-mono bg-slate-100 px-2 py-0.5 rounded">${wordCount} words</span>
-                    </div>
-                    <div class="bg-slate-50 p-6 rounded-xl text-slate-800 border leading-relaxed shadow-inner">
-                        ${text ? text.replace(/\n/g, '<br>') : '<span class="text-slate-300 italic">No entry yet.</span>'}
-                    </div>
-                `;
-                content.appendChild(section);
+                content.innerHTML += `
+                    <div class="mb-10">
+                        <h4 class="text-blue-800 text-xs font-black uppercase tracking-widest mb-4">${label}</h4>
+                        <div class="bg-slate-50 p-6 rounded-xl text-slate-800 border leading-relaxed shadow-inner">
+                            ${text.replace(/\n/g, '<br>') || '<span class="text-slate-300">No response.</span>'}
+                        </div>
+                    </div>`;
             });
 
             modal.classList.remove('hidden');
         }
 
-        document.getElementById('close-modal').onclick = () => document.getElementById('view-modal').classList.add('hidden');
-        document.getElementById('close-modal-btn').onclick = () => document.getElementById('view-modal').classList.add('hidden');
-
-        document.getElementById('export-btn').onclick = () => {
-            if (allData.length === 0) return alert("No student data to export.");
-            let csv = "Name,Status,Words,Q1a,Q1b,Q2,Q3,Q4\n";
-            allData.forEach(r => {
-                csv += `"${r.studentName}","${r.status}","${r.totalWords}","${(r.responses?.q1a||'').replace(/"/g,'""')}","${(r.responses?.q1b||'').replace(/"/g,'""')}","${(r.responses?.q2||'').replace(/"/g,'""')}","${(r.responses?.q3||'').replace(/"/g,'""')}","${(r.responses?.q4||'').replace(/"/g,'""')}"\n`;
-            });
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `IB_History_Results_${new Date().toLocaleDateString().replace(/\//g, '-')}.csv`;
-            a.click();
+        document.getElementById('send-feedback-btn').onclick = async () => {
+            if (!currentOpenStudentId) return;
+            const text = document.getElementById('feedback-input').value;
+            const grade = document.getElementById('grade-input').value;
+            const status = document.getElementById('feedback-status');
+            status.innerText = "Saving Assessment...";
+            
+            try {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'submissions', currentOpenStudentId), {
+                    teacherFeedback: text,
+                    finalGrade: grade,
+                    assessedAt: new Date().getTime()
+                });
+                status.innerText = "Assessment saved! Student can now view this.";
+            } catch (e) {
+                status.innerText = "Error saving.";
+            }
         };
 
+        document.getElementById('close-modal').onclick = () => document.getElementById('view-modal').classList.add('hidden');
         init();
     </script>
 </body>
