@@ -36,8 +36,8 @@
     </main>
 
     <div id="view-modal" class="fixed inset-0 bg-black/90 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white text-slate-900 w-full max-w-6xl h-[92vh] rounded-2xl overflow-hidden flex flex-col shadow-2xl">
-            <div class="p-6 border-b flex justify-between items-center bg-slate-50">
+        <div class="bg-slate-100 text-slate-900 w-full max-w-7xl h-[95vh] rounded-2xl overflow-hidden flex flex-col shadow-2xl">
+            <div class="p-6 border-b flex justify-between items-center bg-white shadow-sm z-10">
                 <div>
                     <h2 id="modal-student-name" class="text-2xl font-bold text-slate-800 tracking-tight">Student Name</h2>
                     <p id="modal-meta" class="text-xs text-slate-400 font-mono mt-1 uppercase tracking-tighter"></p>
@@ -46,29 +46,32 @@
             </div>
             
             <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
-                <!-- Response View -->
-                <div id="modal-content" class="flex-1 p-8 overflow-y-auto space-y-10 font-serif text-lg leading-relaxed bg-white border-r"></div>
+                <!-- Response View (Left Side) -->
+                <div id="modal-content" class="flex-1 p-8 overflow-y-auto space-y-8 text-lg bg-slate-50 border-r border-slate-200">
+                    <!-- Individual questions and grading inputs get injected here -->
+                </div>
                 
-                <!-- Assessment Sidebar -->
-                <div class="w-full md:w-96 bg-slate-50 p-6 flex flex-col border-t md:border-t-0 overflow-y-auto">
-                    <h3 class="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">Post-Exam Assessment</h3>
+                <!-- Assessment Sidebar (Right Side) -->
+                <div class="w-full md:w-96 bg-white p-6 flex flex-col border-t md:border-t-0 overflow-y-auto shadow-[-4px_0_15px_rgba(0,0,0,0.05)]">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-slate-500 mb-6 border-b pb-2">Overall Assessment</h3>
                     
-                    <div class="mb-4">
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Final Score (/24)</label>
-                        <input type="number" id="grade-input" class="w-full p-3 border rounded-xl text-xl font-bold focus:ring-2 focus:ring-red-500 outline-none" placeholder="0">
+                    <div class="mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2">Total Score (/24)</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="grade-input" class="w-24 p-3 border rounded-lg text-2xl font-black text-red-700 focus:ring-2 focus:ring-red-500 outline-none text-center" placeholder="0">
+                            <span class="text-sm font-bold text-slate-400">/ 24 marks</span>
+                        </div>
+                        <p class="text-[9px] text-slate-400 mt-2 uppercase font-bold italic">*Auto-calculated from questions</p>
                     </div>
 
-                    <div class="flex-1 flex flex-col min-min-h-[200px]">
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Teacher Feedback & Guidance</label>
-                        <textarea id="feedback-input" class="flex-1 w-full p-4 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none mb-4" placeholder="Provide detailed feedback for the student to see when they log back in..."></textarea>
+                    <div class="flex-1 flex flex-col min-h-[200px] mb-6">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2">General Overall Feedback</label>
+                        <textarea id="feedback-input" class="flex-1 w-full p-4 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none" placeholder="Provide general feedback on their overall performance..."></textarea>
                     </div>
 
-                    <button id="send-feedback-btn" class="w-full bg-red-700 text-white font-bold py-4 rounded-xl hover:bg-red-800 transition shadow-lg uppercase tracking-widest text-sm">Save & Send Assessment</button>
-                    <p id="feedback-status" class="text-[10px] text-center mt-3 text-slate-400 italic"></p>
+                    <button id="send-feedback-btn" class="w-full bg-red-700 text-white font-black py-4 rounded-xl hover:bg-red-800 transition shadow-lg uppercase tracking-widest text-sm">Save & Send Assessment</button>
+                    <p id="feedback-status" class="text-[11px] font-bold text-center mt-3 text-emerald-600"></p>
                     
-                    <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-                        <p class="text-[10px] text-blue-600 font-bold leading-tight italic">Students will see this feedback the next time they open their portal.</p>
-                    </div>
                 </div>
             </div>
         </div>
@@ -113,8 +116,7 @@
             allData.sort((a, b) => (a.studentName || '').localeCompare(b.studentName || ''));
 
             allData.forEach(student => {
-                const isFinal = (student.status || '').includes('FINAL');
-                const hasGrade = student.finalGrade !== undefined;
+                const hasGrade = student.finalGrade !== undefined && student.finalGrade !== "";
                 const card = document.createElement('div');
                 card.className = `p-6 rounded-xl border transition-all cursor-pointer ${hasGrade ? 'bg-slate-800 border-emerald-500' : 'bg-slate-900 border-slate-800'} hover:border-blue-500`;
                 card.innerHTML = `
@@ -135,6 +137,8 @@
             currentOpenStudentId = student.id;
             const modal = document.getElementById('view-modal');
             const content = document.getElementById('modal-content');
+            
+            // Set Sidebar Overall Data
             document.getElementById('modal-student-name').innerText = student.studentName;
             document.getElementById('feedback-input').value = student.teacherFeedback || "";
             document.getElementById('grade-input').value = student.finalGrade || "";
@@ -142,41 +146,100 @@
             document.getElementById('modal-meta').innerText = `Session: ${student.id} | Status: ${student.status}`;
             
             content.innerHTML = '';
-            const labels = { q1a: "Question 1a", q1b: "Question 1b", q2: "Question 2", q3: "Question 3", q4: "Question 4" };
-            Object.entries(labels).forEach(([qid, label]) => {
+            const labels = { 
+                q1a: { name: "Question 1a (Document)", max: 3 }, 
+                q1b: { name: "Question 1b (Cartoon/Map)", max: 2 }, 
+                q2: { name: "Question 2 (OPVL)", max: 4 }, 
+                q3: { name: "Question 3 (Compare/Contrast)", max: 6 }, 
+                q4: { name: "Question 4 (Synthesis)", max: 9 } 
+            };
+
+            // Generate each question with individual grading tools
+            Object.entries(labels).forEach(([qid, info]) => {
                 const text = student.responses?.[qid] || '';
+                const qData = student.questionAssessments?.[qid] || {};
+                const qScore = qData.score !== undefined ? qData.score : '';
+                const qFeed = qData.feedback || '';
+
                 content.innerHTML += `
-                    <div class="mb-10">
-                        <h4 class="text-blue-800 text-xs font-black uppercase tracking-widest mb-4">${label}</h4>
-                        <div class="bg-slate-50 p-6 rounded-xl text-slate-800 border leading-relaxed shadow-inner">
-                            ${text.replace(/\n/g, '<br>') || '<span class="text-slate-300">No response.</span>'}
+                    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                        <div class="flex justify-between items-center mb-4 border-b pb-2">
+                            <h4 class="text-blue-800 text-sm font-black uppercase tracking-widest">${info.name}</h4>
+                            <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded">Max: ${info.max}m</span>
+                        </div>
+                        <div class="font-serif text-slate-700 leading-relaxed mb-6 whitespace-pre-wrap">${text || '<span class="text-slate-300 italic">No response provided.</span>'}</div>
+                        
+                        <div class="bg-blue-50/50 p-4 rounded-lg border border-blue-100 flex flex-col md:flex-row gap-4">
+                            <div class="w-full md:w-24">
+                                <label class="block text-[10px] font-black text-blue-800 uppercase mb-1">Score</label>
+                                <input type="number" id="score-${qid}" value="${qScore}" min="0" max="${info.max}" class="q-score-input w-full p-2 border border-blue-200 rounded text-center font-bold text-blue-900 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="/${info.max}">
+                            </div>
+                            <div class="flex-1">
+                                <label class="block text-[10px] font-black text-blue-800 uppercase mb-1">Specific Feedback (Optional)</label>
+                                <textarea id="feedback-${qid}" class="w-full p-2 border border-blue-200 rounded text-sm text-blue-900 focus:ring-2 focus:ring-blue-500 outline-none resize-none" rows="2" placeholder="Feedback for just this question...">${qFeed}</textarea>
+                            </div>
                         </div>
                     </div>`;
             });
+
+            // Auto-Calculate Total Score Feature
+            setTimeout(() => {
+                const scoreInputs = document.querySelectorAll('.q-score-input');
+                scoreInputs.forEach(input => {
+                    input.addEventListener('input', () => {
+                        let total = 0;
+                        scoreInputs.forEach(inp => { total += Number(inp.value) || 0; });
+                        document.getElementById('grade-input').value = total;
+                    });
+                });
+            }, 100);
 
             modal.classList.remove('hidden');
         }
 
         document.getElementById('send-feedback-btn').onclick = async () => {
             if (!currentOpenStudentId) return;
-            const text = document.getElementById('feedback-input').value;
-            const grade = document.getElementById('grade-input').value;
             const status = document.getElementById('feedback-status');
             status.innerText = "Saving Assessment...";
             
+            // Gather all individual question assessments
+            const questionAssessments = {};
+            ['q1a', 'q1b', 'q2', 'q3', 'q4'].forEach(qid => {
+                questionAssessments[qid] = {
+                    score: document.getElementById(`score-${qid}`).value,
+                    feedback: document.getElementById(`feedback-${qid}`).value
+                };
+            });
+
             try {
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'submissions', currentOpenStudentId), {
-                    teacherFeedback: text,
-                    finalGrade: grade,
+                    teacherFeedback: document.getElementById('feedback-input').value,
+                    finalGrade: document.getElementById('grade-input').value,
+                    questionAssessments: questionAssessments,
                     assessedAt: new Date().getTime()
                 });
-                status.innerText = "Assessment saved! Student can now view this.";
+                status.innerText = "✓ Saved & Sent to Student!";
+                setTimeout(() => { status.innerText = ""; }, 3000);
             } catch (e) {
-                status.innerText = "Error saving.";
+                status.innerText = "Error saving data.";
             }
         };
 
         document.getElementById('close-modal').onclick = () => document.getElementById('view-modal').classList.add('hidden');
+        
+        // Update Export CSV to include Total Grade
+        document.getElementById('export-btn').onclick = () => {
+            if (allData.length === 0) return alert("No data");
+            let csv = "Name,Status,Total Grade,Words,Q1a,Q1b,Q2,Q3,Q4\n";
+            allData.forEach(r => {
+                csv += `"${r.studentName}","${r.status}","${r.finalGrade||''}","${r.totalWords}","${(r.responses?.q1a||'').replace(/"/g,'""')}","${(r.responses?.q1b||'').replace(/"/g,'""')}","${(r.responses?.q2||'').replace(/"/g,'""')}","${(r.responses?.q3||'').replace(/"/g,'""')}","${(r.responses?.q4||'').replace(/"/g,'""')}"\n`;
+            });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+            link.download = `IB_History_Results.csv`;
+            link.click();
+        };
+
         init();
     </script>
 </body>
