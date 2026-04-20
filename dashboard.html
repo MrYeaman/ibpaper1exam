@@ -42,7 +42,17 @@
                     <h2 id="modal-student-name" class="text-2xl font-bold text-slate-800 tracking-tight">Student Name</h2>
                     <p id="modal-meta" class="text-xs text-slate-400 font-mono mt-1 uppercase tracking-tighter"></p>
                 </div>
-                <button id="close-modal" class="text-3xl font-light text-slate-400 hover:text-red-500 transition-colors">&times;</button>
+                <div class="flex items-center gap-4">
+                    <button id="download-modal-btn" class="text-sm font-bold text-slate-500 hover:text-blue-600 flex items-center gap-1 transition-colors" title="Download Text File">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                        Download
+                    </button>
+                    <button id="print-modal-btn" class="text-sm font-bold text-slate-500 hover:text-blue-600 flex items-center gap-1 transition-colors" title="Print Submission">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z" clip-rule="evenodd" /></svg>
+                        Print
+                    </button>
+                    <button id="close-modal" class="text-3xl font-light text-slate-400 hover:text-red-500 transition-colors ml-2">&times;</button>
+                </div>
             </div>
             
             <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
@@ -66,7 +76,7 @@
 
                     <div class="flex-1 flex flex-col min-h-[200px] mb-6">
                         <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2">General Overall Feedback</label>
-                        <textarea id="feedback-input" class="flex-1 w-full p-4 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none" placeholder="Provide general feedback on their overall performance..."></textarea>
+                        <textarea id="feedback-input" class="w-full p-4 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none overflow-hidden min-h-[150px]" placeholder="Provide general feedback on their overall performance..."></textarea>
                     </div>
 
                     <button id="send-feedback-btn" class="w-full bg-red-700 text-white font-black py-4 rounded-xl hover:bg-red-800 transition shadow-lg uppercase tracking-widest text-sm">Save & Send Assessment</button>
@@ -97,6 +107,7 @@
         const appId = 'ib-history-portal';
         let allData = [];
         let currentOpenStudentId = null;
+        let currentStudentData = null;
 
         async function init() {
             await signInAnonymously(auth);
@@ -135,6 +146,7 @@
 
         function openModal(student) {
             currentOpenStudentId = student.id;
+            currentStudentData = student;
             const modal = document.getElementById('view-modal');
             const content = document.getElementById('modal-content');
             
@@ -176,13 +188,13 @@
                             </div>
                             <div class="flex-1">
                                 <label class="block text-[10px] font-black text-blue-800 uppercase mb-1">Specific Feedback (Optional)</label>
-                                <textarea id="feedback-${qid}" class="w-full p-2 border border-blue-200 rounded text-sm text-blue-900 focus:ring-2 focus:ring-blue-500 outline-none resize-none" rows="2" placeholder="Feedback for just this question...">${qFeed}</textarea>
+                                <textarea id="feedback-${qid}" class="w-full p-2 border border-blue-200 rounded text-sm text-blue-900 focus:ring-2 focus:ring-blue-500 outline-none resize-none overflow-hidden" rows="2" placeholder="Feedback for just this question...">${qFeed}</textarea>
                             </div>
                         </div>
                     </div>`;
             });
 
-            // Auto-Calculate Total Score Feature
+            // Auto-Calculate Total Score Feature & Auto-Expand Textareas
             setTimeout(() => {
                 const scoreInputs = document.querySelectorAll('.q-score-input');
                 scoreInputs.forEach(input => {
@@ -190,6 +202,20 @@
                         let total = 0;
                         scoreInputs.forEach(inp => { total += Number(inp.value) || 0; });
                         document.getElementById('grade-input').value = total;
+                    });
+                });
+
+                // Auto-expand all feedback textareas
+                const textareas = document.querySelectorAll('textarea[id^="feedback-"]');
+                textareas.forEach(ta => {
+                    // Initial resize for loaded content
+                    ta.style.height = 'auto';
+                    ta.style.height = ta.scrollHeight + 'px';
+                    
+                    // Resize dynamically on input
+                    ta.addEventListener('input', function() {
+                        this.style.height = 'auto';
+                        this.style.height = this.scrollHeight + 'px';
                     });
                 });
             }, 100);
@@ -227,6 +253,85 @@
 
         document.getElementById('close-modal').onclick = () => document.getElementById('view-modal').classList.add('hidden');
         
+        // --- PRINT AND DOWNLOAD LOGIC ---
+        function getCurrentAssessmentData() {
+            const data = {
+                finalGrade: document.getElementById('grade-input').value,
+                teacherFeedback: document.getElementById('feedback-input').value,
+                questions: {}
+            };
+            ['q1a', 'q1b', 'q2', 'q3', 'q4'].forEach(qid => {
+                data.questions[qid] = {
+                    score: document.getElementById(`score-${qid}`).value,
+                    feedback: document.getElementById(`feedback-${qid}`).value
+                };
+            });
+            return data;
+        }
+
+        document.getElementById('print-modal-btn').onclick = () => {
+            if(!currentStudentData) return;
+            const assessData = getCurrentAssessmentData();
+            const labels = { q1a: { name: "Q1a", max: 3 }, q1b: { name: "Q1b", max: 2 }, q2: { name: "Q2", max: 4 }, q3: { name: "Q3", max: 6 }, q4: { name: "Q4", max: 9 } };
+            
+            let html = `<html><head><title>Exam: ${currentStudentData.studentName}</title><style>body{font-family:sans-serif; padding:20px; color:#333; line-height:1.6;} .header{border-bottom:2px solid #ccc; padding-bottom:10px; margin-bottom:20px;} h1{margin:0; font-size:24px;} .grade{font-size:20px; font-weight:bold; color:#b91c1c;} .overall-fb{background:#f8fafc; padding:15px; border-left:4px solid #3b82f6; margin-bottom:30px;} .q-box{margin-bottom:25px;} .q-title{font-weight:bold; font-size:14px; text-transform:uppercase; color:#1e40af; margin-bottom:5px;} .q-score{font-weight:bold; color:#b91c1c;} .q-answer{font-family:serif; font-size:16px; margin:10px 0; padding:15px; border:1px solid #e2e8f0; background-color:#fff;} .q-fb{background:#eff6ff; padding:10px; font-size:14px; font-style:italic;}</style></head><body>`;
+            
+            html += `<div class="header"><h1>${currentStudentData.studentName}</h1><p>Status: ${currentStudentData.status}</p><p class="grade">Total Score: ${assessData.finalGrade || '--'} / 24</p></div>`;
+            if (assessData.teacherFeedback) {
+                html += `<div><strong>Overall Feedback:</strong><div class="overall-fb">${assessData.teacherFeedback.replace(/\n/g, '<br>')}</div></div>`;
+            }
+            
+            Object.entries(labels).forEach(([qid, info]) => {
+                const ans = currentStudentData.responses?.[qid] || 'No response.';
+                const score = assessData.questions[qid].score || '--';
+                const fb = assessData.questions[qid].feedback;
+                html += `<div class="q-box"><div class="q-title">${info.name} - Score: <span class="q-score">${score} / ${info.max}</span></div>`;
+                html += `<div class="q-answer">${ans.replace(/\n/g, '<br>')}</div>`;
+                if(fb) html += `<div class="q-fb">Teacher Notes: ${fb.replace(/\n/g, '<br>')}</div>`;
+                html += `</div>`;
+            });
+            
+            html += `</body></html>`;
+            const printWindow = window.open('', '', 'height=800,width=800');
+            printWindow.document.write(html);
+            printWindow.document.close();
+            setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+        };
+
+        document.getElementById('download-modal-btn').onclick = () => {
+            if(!currentStudentData) return;
+            const assessData = getCurrentAssessmentData();
+            const labels = { q1a: { name: "Question 1a", max: 3 }, q1b: { name: "Question 1b", max: 2 }, q2: { name: "Question 2", max: 4 }, q3: { name: "Question 3", max: 6 }, q4: { name: "Question 4", max: 9 } };
+            
+            let text = `IB HISTORY EXAM SUBMISSION\n`;
+            text += `=========================================\n`;
+            text += `Student Name : ${currentStudentData.studentName}\n`;
+            text += `Status       : ${currentStudentData.status}\n`;
+            text += `Total Score  : ${assessData.finalGrade || '--'} / 24\n`;
+            text += `=========================================\n\n`;
+            
+            if (assessData.teacherFeedback) {
+                text += `OVERALL FEEDBACK:\n${assessData.teacherFeedback}\n\n-----------------------------------------\n\n`;
+            }
+
+            Object.entries(labels).forEach(([qid, info]) => {
+                const ans = currentStudentData.responses?.[qid] || 'No response.';
+                const score = assessData.questions[qid].score || '--';
+                const fb = assessData.questions[qid].feedback;
+                
+                text += `${info.name.toUpperCase()} (Score: ${score} / ${info.max})\n`;
+                text += `STUDENT ANSWER:\n${ans}\n\n`;
+                if(fb) { text += `TEACHER NOTES:\n${fb}\n\n`; }
+                text += `-----------------------------------------\n\n`;
+            });
+
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `Submission_${currentStudentData.studentName.replace(/\s+/g, '_')}.txt`;
+            link.click();
+        };
+
         // Update Export CSV to include Total Grade
         document.getElementById('export-btn').onclick = () => {
             if (allData.length === 0) return alert("No data");
