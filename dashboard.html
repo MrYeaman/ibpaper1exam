@@ -135,8 +135,8 @@
         const db = getFirestore(app);
         const appId = 'ib-history-portal';
         
-        // Reset password to "history2024"
-        const targetHash = "29df713f01c87606e147e44e2776c5b9f71c4c9a59b96e4776092780e0c8b600";
+        // Default password "admin" hash
+        const targetHash = "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918";
         
         let allData = [];
         let currentOpenStudentId = null;
@@ -154,6 +154,9 @@
             const password = document.getElementById('access-password').value;
             const errorMsg = document.getElementById('login-error');
             const hash = await sha256(password);
+
+            // Print the hash to the console so you can easily copy it for new passwords!
+            console.log("The SHA-256 hash for '" + password + "' is: " + hash);
 
             if (hash === targetHash) {
                 sessionStorage.setItem('teacher_auth', 'true');
