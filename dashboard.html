@@ -16,44 +16,14 @@
 </head>
 <body class="text-slate-100 min-h-screen font-sans">
 
-    <!-- LOGIN OVERLAY -->
-    <div id="login-overlay" class="fixed inset-0 bg-slate-950 z-[100] flex items-center justify-center p-6">
-        <div class="bg-slate-900 border border-slate-800 p-8 rounded-2xl w-full max-w-md shadow-2xl">
-            <div class="mb-6 text-center">
-                <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-500/10 rounded-full mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                </div>
-                <h2 class="text-2xl font-bold text-white">Teacher Access</h2>
-                <p class="text-slate-400 text-sm mt-1">Enter the access key to manage exam submissions.</p>
-            </div>
-            
-            <div class="space-y-4">
-                <div>
-                    <input type="password" id="access-password" 
-                        class="w-full bg-slate-800 border border-slate-700 text-white p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-500" 
-                        placeholder="Enter access password...">
-                </div>
-                <button id="login-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition-colors shadow-lg">
-                    Unlock Dashboard
-                </button>
-                <p id="login-error" class="text-red-400 text-xs text-center hidden font-medium">Incorrect password. Access denied.</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- DASHBOARD CONTENT (Initially Hidden) -->
-    <div id="dashboard-wrapper" class="hidden p-6">
+    <!-- DASHBOARD CONTENT -->
+    <div id="dashboard-wrapper" class="p-6">
         <header class="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-end border-b border-slate-800 pb-6 gap-4">
             <div>
                 <h1 class="text-3xl font-bold text-white tracking-tight">Exam Control Tower</h1>
                 <p class="text-slate-500 font-medium tracking-wide">IB History Paper 1: Assessment Mode</p>
             </div>
             <div class="flex gap-4">
-                <button id="logout-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg font-bold transition text-sm">
-                    Logout
-                </button>
                 <button id="download-all-btn" class="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2 rounded-lg font-bold transition flex items-center gap-2 shadow-lg text-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                     Download All (.txt)
@@ -135,49 +105,9 @@
         const db = getFirestore(app);
         const appId = 'ib-history-portal';
         
-        // Default password "admin" hash
-        const targetHash = "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918";
-        
         let allData = [];
         let currentOpenStudentId = null;
         let currentStudentData = null;
-
-        // --- AUTH LOGIC ---
-        async function sha256(message) {
-            const msgBuffer = new TextEncoder().encode(message);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-
-        async function handleLogin() {
-            const password = document.getElementById('access-password').value;
-            const errorMsg = document.getElementById('login-error');
-            const hash = await sha256(password);
-
-            // Print the hash to the console so you can easily copy it for new passwords!
-            console.log("The SHA-256 hash for '" + password + "' is: " + hash);
-
-            if (hash === targetHash) {
-                sessionStorage.setItem('teacher_auth', 'true');
-                showDashboard();
-            } else {
-                errorMsg.classList.remove('hidden');
-                document.getElementById('access-password').value = '';
-            }
-        }
-
-        function showDashboard() {
-            document.getElementById('login-overlay').classList.add('hidden');
-            document.getElementById('dashboard-wrapper').classList.remove('hidden');
-            initData();
-        }
-
-        function checkAuth() {
-            if (sessionStorage.getItem('teacher_auth') === 'true') {
-                showDashboard();
-            }
-        }
 
         // --- DATA LOGIC ---
         async function initData() {
@@ -279,14 +209,6 @@
         }
 
         // --- BUTTON HANDLERS ---
-        document.getElementById('login-btn').onclick = handleLogin;
-        document.getElementById('access-password').onkeydown = (e) => { if(e.key === 'Enter') handleLogin(); };
-        
-        document.getElementById('logout-btn').onclick = () => {
-            sessionStorage.removeItem('teacher_auth');
-            window.location.reload();
-        };
-
         document.getElementById('send-feedback-btn').onclick = async () => {
             if (!currentOpenStudentId) return;
             const status = document.getElementById('feedback-status');
@@ -394,8 +316,8 @@
             link.click();
         };
 
-        // Run check on load
-        checkAuth();
+        // Run data load immediately
+        initData();
     </script>
 </body>
 </html>
