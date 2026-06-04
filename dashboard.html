@@ -5,83 +5,152 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IB History - Teacher Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Merriweather:wght@400;700&display=swap');
+        body { background-color: #020617; font-family: 'Inter', sans-serif; }
+        .font-serif { font-family: 'Merriweather', serif; }
         .status-pulse { animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
-        #modal-content::-webkit-scrollbar { width: 8px; }
-        #modal-content::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        body { background-color: #020617; }
-        .hidden { display: none !important; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        
+        #modal-scroll-area::-webkit-scrollbar { width: 8px; }
+        #modal-scroll-area::-webkit-scrollbar-thumb { background: #b91c1c; border-radius: 10px; }
+        
+        /* Match Student Portal Width Exactly */
+        .paper-container {
+            width: 800px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        #annotation-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            cursor: crosshair;
+            z-index: 20;
+        }
+
+        .pen-active #annotation-canvas { pointer-events: auto; }
+        .gradebook-table th { @apply text-left p-4 text-[10px] uppercase tracking-widest text-slate-500 font-black border-b border-slate-800; }
+        .gradebook-table td { @apply p-4 text-sm border-b border-slate-800/50; }
+        .gradebook-table tr:hover { @apply bg-slate-900/50; }
+        .blur-bg { backdrop-filter: blur(12px); }
     </style>
 </head>
-<body class="text-slate-100 min-h-screen font-sans">
+<body class="text-slate-100 min-h-screen p-4 md:p-8">
 
-    <!-- DASHBOARD CONTENT -->
-    <div id="dashboard-wrapper" class="p-6">
-        <header class="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-end border-b border-slate-800 pb-6 gap-4">
+    <!-- PASSWORD OVERLAY -->
+    <div id="login-overlay" class="fixed inset-0 bg-slate-950 z-[100] flex items-center justify-center p-4 blur-bg">
+        <div class="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center border-t-4 border-red-700">
+            <h2 class="text-2xl font-bold text-white mb-2">IB History Control</h2>
+            <p class="text-slate-500 text-sm mb-6">Enter access key to view Paper 1 exams.</p>
+            <form id="login-form" class="space-y-4">
+                <input type="password" id="access-key" placeholder="Enter Security Key" class="w-full bg-slate-800 border border-slate-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-700 text-center tracking-widest" required autofocus>
+                <button type="submit" class="w-full bg-red-700 hover:bg-red-800 text-white font-bold py-3 rounded-lg transition shadow-lg">Unlock Dashboard</button>
+                <p id="login-error" class="text-red-500 text-xs font-semibold hidden">Invalid Security Key</p>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD -->
+    <div id="dashboard-content" class="invisible flex flex-col min-h-screen">
+        <header class="max-w-7xl w-full mx-auto mb-8 flex flex-col md:flex-row justify-between items-end border-b border-slate-800 pb-6 gap-6">
             <div>
-                <h1 class="text-3xl font-bold text-white tracking-tight">Exam Control Tower</h1>
-                <p class="text-slate-500 font-medium tracking-wide">IB History Paper 1: Assessment Mode</p>
+                <h1 class="text-3xl font-bold text-white tracking-tight">IB Control Tower</h1>
+                <div class="flex items-center gap-4 mt-2">
+                    <button id="view-monitor-btn" class="text-xs font-bold px-3 py-1 rounded bg-red-700 text-white shadow-lg">Live Monitor</button>
+                    <button id="view-gradebook-btn" class="text-xs font-bold px-3 py-1 rounded bg-slate-800 text-slate-400 hover:text-white transition">Class Gradebook</button>
+                </div>
             </div>
-            <div class="flex gap-4">
-                <button id="download-all-btn" class="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2 rounded-lg font-bold transition flex items-center gap-2 shadow-lg text-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                    Download All (.txt)
-                </button>
-                <button id="export-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg font-bold transition flex items-center gap-2 shadow-lg text-sm">
-                    Export CSV
-                </button>
-                <div class="bg-slate-900 px-6 py-2 rounded-lg border border-slate-800 text-center">
-                    <span class="text-[10px] text-slate-500 block uppercase font-black tracking-widest leading-none mb-1">Students Connected</span>
-                    <span id="active-count" class="text-2xl font-mono font-bold text-blue-400">0</span>
+            
+            <div class="flex flex-wrap items-end gap-3 w-full md:w-auto">
+                <div class="flex-1 min-w-[200px]">
+                    <input type="text" id="search-input" placeholder="Search students or papers..." class="w-full bg-slate-900 border border-slate-700 text-white px-4 py-2 rounded-lg focus:outline-none focus:border-red-700 text-sm">
+                </div>
+                <div class="flex gap-2">
+                    <button id="export-btn" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-bold transition shadow-lg text-sm h-[38px] border border-slate-700">CSV</button>
+                    <button id="download-zip-btn" class="bg-red-700 hover:bg-red-800 text-white px-5 py-2 rounded-lg font-bold transition shadow-lg text-sm h-[38px]">Download ZIP</button>
+                </div>
+                <div class="bg-slate-900 px-6 py-1.5 rounded-lg border border-slate-800 text-center h-[38px] flex flex-col justify-center">
+                    <span id="active-count" class="text-xl font-mono font-bold text-red-500 leading-none">0</span>
                 </div>
             </div>
         </header>
 
-        <main class="max-w-7xl mx-auto">
-            <div id="student-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        <main class="max-w-7xl w-full mx-auto pb-12 flex-1">
+            <div id="loading-indicator" class="text-center py-12 text-slate-500 font-bold animate-pulse">Establishing Secure Uplink...</div>
+            <div id="student-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 hidden"></div>
+            <div id="gradebook-view" class="hidden bg-slate-900/30 rounded-2xl border border-slate-800 overflow-hidden">
+                <table class="w-full gradebook-table">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Completed Tasks</th>
+                            <th>Scores (out of 24)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="gradebook-body"></tbody>
+                </table>
+            </div>
+            <div id="empty-state" class="hidden text-center py-20 border-2 border-dashed border-slate-800 rounded-2xl text-slate-500">No exams found in IB database.</div>
         </main>
     </div>
 
-    <!-- VIEW MODAL -->
-    <div id="view-modal" class="fixed inset-0 bg-black/90 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-slate-100 text-slate-900 w-full max-w-7xl h-[95vh] rounded-2xl overflow-hidden flex flex-col shadow-2xl">
-            <div class="p-6 border-b flex justify-between items-center bg-white shadow-sm z-10">
-                <div>
-                    <h2 id="modal-student-name" class="text-2xl font-bold text-slate-800 tracking-tight">Student Name</h2>
-                    <p id="modal-meta" class="text-xs text-slate-400 font-mono mt-1 uppercase tracking-tighter"></p>
+    <!-- READING MODAL -->
+    <div id="view-modal" class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 rounded-xl w-full max-w-6xl max-h-[95vh] flex flex-col shadow-2xl border border-slate-700 overflow-hidden">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+                <div class="flex-1">
+                    <h2 id="modal-student-name" class="text-xl font-bold text-white">Student Name</h2>
+                    <p id="modal-assignment" class="text-red-500 font-medium text-xs">Paper 1</p>
                 </div>
+                
                 <div class="flex items-center gap-4">
-                    <button id="download-modal-btn" class="text-sm font-bold text-slate-500 hover:text-blue-600 flex items-center gap-1 transition-colors" title="Download Text File">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                        Download
+                    <div id="delete-confirm-ui" class="hidden flex items-center gap-2 bg-red-900/20 border border-red-500/50 p-1 rounded-lg">
+                        <span class="text-[10px] font-bold text-red-400 px-2 uppercase">Delete?</span>
+                        <button id="confirm-delete-btn" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-[10px] font-bold uppercase transition">Yes</button>
+                        <button id="cancel-delete-btn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded text-[10px] font-bold uppercase transition">No</button>
+                    </div>
+                    <button id="trigger-delete-btn" class="text-red-500/50 hover:text-red-500 transition p-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
-                    <button id="print-modal-btn" class="text-sm font-bold text-slate-500 hover:text-blue-600 flex items-center gap-1 transition-colors" title="Print Submission">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z" clip-rule="evenodd" /></svg>
-                        Print
+
+                    <div class="flex items-center bg-slate-800 p-1 rounded-lg border border-slate-700">
+                        <button id="toggle-pen-btn" class="px-4 py-2 rounded-md text-[11px] font-bold uppercase transition flex items-center gap-2 bg-slate-700 text-slate-400 hover:text-white">
+                            <span class="w-2 h-2 rounded-full bg-current"></span> Blue Pen
+                        </button>
+                        <button id="undo-pen-btn" class="px-3 py-2 rounded-md text-[11px] font-bold uppercase text-slate-400 hover:bg-slate-700 hover:text-white transition border-l border-r border-slate-700" title="Undo">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+                        </button>
+                        <button id="clear-pen-btn" class="px-3 py-2 rounded-md text-[11px] font-bold uppercase text-red-400 hover:bg-red-900/30 transition">Clear</button>
+                    </div>
+
+                    <div class="bg-slate-800 p-1 rounded-lg border border-slate-700 flex items-center gap-2">
+                        <input type="number" id="grade-input" min="0" max="24" class="w-14 bg-slate-950 border border-slate-600 text-white rounded px-2 py-1 text-sm font-bold outline-none" placeholder="--">
+                        <span class="text-slate-500 text-xs font-bold">/24</span>
+                        <button id="save-grade-btn" class="bg-red-700 hover:bg-red-800 text-white px-4 py-2 rounded text-[11px] font-bold uppercase transition">Save All</button>
+                    </div>
+                    
+                    <button id="close-modal" class="text-slate-500 hover:text-white p-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
-                    <button id="close-modal" class="text-3xl font-light text-slate-400 hover:text-red-500 transition-colors ml-2">&times;</button>
                 </div>
             </div>
             
-            <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
-                <div id="modal-content" class="flex-1 p-8 overflow-y-auto space-y-8 text-lg bg-slate-50 border-r border-slate-200"></div>
-                <div class="w-full md:w-96 bg-white p-6 flex flex-col border-t md:border-t-0 overflow-y-auto shadow-[-4px_0_15px_rgba(0,0,0,0.05)]">
-                    <h3 class="text-xs font-black uppercase tracking-widest text-slate-500 mb-6 border-b pb-2">Overall Assessment</h3>
-                    <div class="mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2">Total Score (/24)</label>
-                        <div class="flex items-center gap-2">
-                            <input type="number" id="grade-input" class="w-24 p-3 border rounded-lg text-2xl font-black text-red-700 focus:ring-2 focus:ring-red-500 outline-none text-center" placeholder="0">
-                            <span class="text-sm font-bold text-slate-400">/ 24 marks</span>
-                        </div>
-                    </div>
-                    <div class="flex-1 flex flex-col min-h-[200px] mb-6">
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2">General Overall Feedback</label>
-                        <textarea id="feedback-input" class="w-full p-4 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none overflow-hidden min-h-[150px]" placeholder="Provide feedback..."></textarea>
-                    </div>
-                    <button id="send-feedback-btn" class="w-full bg-red-700 text-white font-black py-4 rounded-xl hover:bg-red-800 transition shadow-lg uppercase tracking-widest text-sm">Save & Send Assessment</button>
-                    <p id="feedback-status" class="text-[11px] font-bold text-center mt-3 text-emerald-600"></p>
+            <div id="modal-scroll-area" class="flex-1 overflow-y-auto bg-slate-100 p-8">
+                <!-- Wrapper mimics the exact width and spacing of the student view -->
+                <div class="paper-container relative shadow-2xl rounded-xl bg-slate-100 p-8">
+                    <div id="modal-content" class="space-y-6 min-h-[800px]"></div>
+                    <canvas id="annotation-canvas"></canvas>
                 </div>
+            </div>
+            
+            <div class="px-6 py-2 bg-slate-900 border-t border-slate-800 text-[10px] text-slate-500 flex justify-between uppercase font-bold tracking-widest">
+                <span id="modal-word-count">0 words</span>
+                <span id="save-indicator" class="text-red-500 opacity-0 transition-opacity">Saving...</span>
             </div>
         </div>
     </div>
@@ -89,8 +158,9 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, query, onSnapshot, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, onSnapshot, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // IB HISTORY FIREBASE KEYS
         const firebaseConfig = {
             apiKey: "AIzaSyCSNhgsM-UXpe8XmsW2hj4lAHD3TW6bg7w",
             authDomain: "ib-paper-1-exams.firebaseapp.com",
@@ -99,225 +169,254 @@
             messagingSenderId: "452822797263",
             appId: "1:452822797263:web:f74698a79ed6692c7720ba"
         };
+        const targetAppId = 'ib-history-portal';
+        
+        // HASH FOR LOGIN
+        const TEACHER_PASSWORD_HASH = "4c23fb39df853626ea346e6e7e5512ad";
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = 'ib-history-portal';
-        
-        let allData = [];
-        let currentOpenStudentId = null;
-        let currentStudentData = null;
 
-        // --- DATA LOGIC ---
-        async function initData() {
-            await signInAnonymously(auth);
-            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'submissions'));
-            onSnapshot(q, (snapshot) => {
-                allData = [];
-                snapshot.forEach(doc => allData.push({ id: doc.id, ...doc.data() }));
-                renderDashboard();
-            }, (error) => {
-                console.error("Firestore error:", error);
+        let allSubmissions = [];
+        let currentlyViewingId = null;
+        let currentView = 'monitor';
+        const qLabels = { q1a: "Question 1a [3 marks]", q1b: "Question 1b [2 marks]", q2: "Question 2 [4 marks]", q3: "Question 3 [6 marks]", q4: "Question 4 [9 marks]" };
+
+        // DOM Elements
+        const grid = document.getElementById('student-grid');
+        const gradebookView = document.getElementById('gradebook-view');
+        const modal = document.getElementById('view-modal');
+        const modalContent = document.getElementById('modal-content');
+        const canvas = document.getElementById('annotation-canvas');
+        const ctx = canvas.getContext('2d');
+        const togglePenBtn = document.getElementById('toggle-pen-btn');
+        const undoPenBtn = document.getElementById('undo-pen-btn');
+        
+        let isDrawing = false;
+        let penEnabled = false;
+        let undoStack = [];
+
+        // Auth handling
+        if (sessionStorage.getItem('ib_teacher_authenticated') === 'true') unlockDashboard();
+        
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const input = document.getElementById('access-key');
+            if (CryptoJS.MD5(input.value).toString() === TEACHER_PASSWORD_HASH) {
+                sessionStorage.setItem('ib_teacher_authenticated', 'true');
+                unlockDashboard();
+            } else {
+                document.getElementById('login-error').classList.remove('hidden');
+                input.value = '';
+            }
+        });
+
+        document.getElementById('access-key').addEventListener('input', () => document.getElementById('login-error').classList.add('hidden'));
+
+        function unlockDashboard() {
+            document.getElementById('login-overlay').classList.add('hidden');
+            document.getElementById('dashboard-content').classList.remove('invisible');
+            initDashboard();
+        }
+
+        // View Toggles
+        document.getElementById('view-monitor-btn').onclick = () => { currentView = 'monitor'; updateViewStyles(); renderUI(); };
+        document.getElementById('view-gradebook-btn').onclick = () => { currentView = 'gradebook'; updateViewStyles(); renderUI(); };
+        function updateViewStyles() {
+            document.getElementById('view-monitor-btn').className = `text-xs font-bold px-3 py-1 rounded ${currentView === 'monitor' ? 'bg-red-700 text-white shadow-lg' : 'bg-slate-800 text-slate-400'}`;
+            document.getElementById('view-gradebook-btn').className = `text-xs font-bold px-3 py-1 rounded ${currentView === 'gradebook' ? 'bg-red-700 text-white shadow-lg' : 'bg-slate-800 text-slate-400'}`;
+        }
+
+        // Pen Logic
+        function saveCanvasState() { undoStack.push(canvas.toDataURL()); if (undoStack.length > 30) undoStack.shift(); }
+        
+        undoPenBtn.addEventListener('click', () => {
+            if (undoStack.length > 1) {
+                undoStack.pop();
+                const img = new Image();
+                img.onload = () => { ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img, 0, 0); };
+                img.src = undoStack[undoStack.length - 1];
+            }
+        });
+
+        function resizeCanvas() {
+            canvas.width = 800;
+            canvas.height = modalContent.parentElement.offsetHeight;
+            canvas.style.width = '800px';
+            canvas.style.height = modalContent.parentElement.offsetHeight + 'px';
+        }
+
+        togglePenBtn.onclick = () => {
+            penEnabled = !penEnabled;
+            document.getElementById('canvas-container').classList.toggle('pen-active', penEnabled);
+            togglePenBtn.classList.toggle('bg-red-700', penEnabled);
+            togglePenBtn.classList.toggle('bg-slate-700', !penEnabled);
+            togglePenBtn.classList.toggle('text-white', penEnabled);
+        };
+        
+        document.getElementById('clear-pen-btn').onclick = () => { if(confirm("Clear notes?")) { ctx.clearRect(0,0,canvas.width,canvas.height); saveCanvasState(); }};
+
+        function getCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: (clientX - rect.left) * (canvas.width / rect.width), y: (clientY - rect.top) * (canvas.height / rect.height) };
+        }
+
+        canvas.onmousedown = (e) => { if(!penEnabled) return; isDrawing = true; const c = getCoords(e); ctx.beginPath(); ctx.moveTo(c.x, c.y); };
+        canvas.onmousemove = (e) => { if(!isDrawing) return; const c = getCoords(e); ctx.lineWidth = 2.5; ctx.lineCap='round'; ctx.strokeStyle = '#b91c1c'; ctx.lineTo(c.x, c.y); ctx.stroke(); };
+        window.onmouseup = () => { if(isDrawing){ isDrawing = false; saveCanvasState(); }};
+        
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); if(!penEnabled) return; isDrawing = true; const c = getCoords(e); ctx.beginPath(); ctx.moveTo(c.x, c.y); }, {passive: false});
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); if(!isDrawing) return; const c = getCoords(e); ctx.lineWidth = 2.5; ctx.lineCap='round'; ctx.strokeStyle = '#b91c1c'; ctx.lineTo(c.x, c.y); ctx.stroke(); }, {passive: false});
+        canvas.addEventListener('touchend', () => { if(isDrawing){ isDrawing = false; saveCanvasState(); }});
+
+        // Delete Logic
+        document.getElementById('trigger-delete-btn').onclick = () => { document.getElementById('trigger-delete-btn').classList.add('hidden'); document.getElementById('delete-confirm-ui').classList.remove('hidden'); };
+        document.getElementById('cancel-delete-btn').onclick = () => { document.getElementById('delete-confirm-ui').classList.add('hidden'); document.getElementById('trigger-delete-btn').classList.remove('hidden'); };
+        document.getElementById('confirm-delete-btn').onclick = async () => {
+            if(!currentlyViewingId) return;
+            await deleteDoc(doc(db, 'artifacts', targetAppId, 'public', 'data', 'submissions', currentlyViewingId));
+            document.getElementById('close-modal').click();
+        };
+
+        document.getElementById('close-modal').onclick = () => {
+            modal.classList.add('hidden'); currentlyViewingId = null;
+            ctx.clearRect(0,0,canvas.width,canvas.height); penEnabled = false;
+            document.getElementById('canvas-container').classList.remove('pen-active');
+            document.getElementById('delete-confirm-ui').classList.add('hidden'); document.getElementById('trigger-delete-btn').classList.remove('hidden');
+        };
+
+        // DB Data
+        async function initDashboard() {
+            try { await signInAnonymously(auth); listenToSubmissions(); } catch (e) { console.error(e); }
+        }
+
+        function listenToSubmissions() {
+            onSnapshot(collection(db, 'artifacts', targetAppId, 'public', 'data', 'submissions'), (snap) => {
+                allSubmissions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                document.getElementById('loading-indicator').classList.add('hidden');
+                renderUI();
             });
         }
 
-        function renderDashboard() {
-            const grid = document.getElementById('student-grid');
-            document.getElementById('active-count').innerText = allData.length;
-            grid.innerHTML = '';
-            
-            allData.sort((a, b) => (a.studentName || '').localeCompare(b.studentName || ''));
+        function renderUI() { currentView === 'monitor' ? (gradebookView.classList.add('hidden'), renderGrid()) : (grid.classList.add('hidden'), renderGradebook()); }
 
-            allData.forEach(student => {
-                const hasGrade = student.finalGrade !== undefined && student.finalGrade !== "";
+        function renderGrid() {
+            const search = document.getElementById('search-input').value.toLowerCase();
+            const now = new Date();
+            let active = 0;
+            grid.innerHTML = '';
+
+            const filtered = allSubmissions
+                .filter(s => (s.studentName||'').toLowerCase().includes(search) || (s.assignment||'').toLowerCase().includes(search))
+                .sort((a,b) => (a.studentName||'').localeCompare(b.studentName||''));
+
+            if(!filtered.length) { document.getElementById('empty-state').classList.remove('hidden'); return; }
+            document.getElementById('empty-state').classList.add('hidden');
+            grid.classList.remove('hidden');
+
+            filtered.forEach(sub => {
+                const isSub = sub.submitted === true;
+                const lastUp = new Date(sub.lastUpdated || 0);
+                const isActive = !isSub && (now - lastUp) < 120000;
+                if(isActive) active++;
+
                 const card = document.createElement('div');
-                card.className = `p-6 rounded-xl border transition-all cursor-pointer ${hasGrade ? 'bg-slate-800 border-emerald-500' : 'bg-slate-900 border-slate-800'} hover:border-blue-500 shadow-xl`;
-                card.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <h3 class="font-bold text-white truncate pr-2">${student.studentName || 'Anonymous'}</h3>
-                        <span class="text-[10px] font-black uppercase whitespace-nowrap ${hasGrade ? 'bg-emerald-600' : 'bg-blue-600'} px-2 py-1 rounded">
-                            ${hasGrade ? 'Graded: ' + student.finalGrade + '/24' : student.totalWords + ' Words'}
-                        </span>
-                    </div>
-                    <p class="text-[10px] text-slate-500 mt-2 uppercase tracking-widest">${student.status || 'Active'}</p>
-                `;
-                card.onclick = () => openModal(student);
+                card.className = `bg-slate-900 border ${isActive ? 'border-red-500/50' : 'border-slate-800'} p-5 rounded-xl hover:bg-slate-800 transition cursor-pointer flex flex-col h-full`;
+                
+                const head = document.createElement('div');
+                head.className = "flex justify-between items-start mb-2";
+                head.innerHTML = `<div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full ${isSub ? 'bg-slate-600' : (isActive ? 'bg-red-500 status-pulse' : 'bg-amber-500')}"></div><span class="text-[10px] font-black uppercase text-slate-500">${isSub ? 'LOCKED' : (isActive ? 'ACTIVE' : 'IDLE')}</span></div>`;
+                if(sub.grade) { const g = document.createElement('span'); g.className = "text-[10px] font-bold text-red-400 bg-red-900/30 px-2 rounded border border-red-800"; g.textContent = `${sub.grade}/24`; head.appendChild(g); }
+
+                const name = document.createElement('h3'), assign = document.createElement('p'), foot = document.createElement('div');
+                name.className = "font-bold text-white truncate"; name.textContent = sub.studentName || 'Unknown';
+                assign.className = "text-[10px] text-red-500 font-medium truncate mb-4"; assign.textContent = sub.assignment || 'Untitled';
+                foot.className = "flex justify-between items-center text-[10px] text-slate-500 border-t border-slate-800 pt-3 mt-auto";
+                foot.innerHTML = `<span>${sub.wordCount || 0} words</span><button class="bg-red-700 text-white px-3 py-1 rounded font-bold uppercase tracking-tighter hover:bg-red-600">Review</button>`;
+
+                card.append(head, name, assign, foot);
+                card.onclick = () => openReview(sub);
                 grid.appendChild(card);
             });
+            document.getElementById('active-count').innerText = active;
         }
 
-        function openModal(student) {
-            currentOpenStudentId = student.id;
-            currentStudentData = student;
-            const modal = document.getElementById('view-modal');
-            const content = document.getElementById('modal-content');
-            
-            document.getElementById('modal-student-name').innerText = student.studentName;
-            document.getElementById('feedback-input').value = student.teacherFeedback || "";
-            document.getElementById('grade-input').value = student.finalGrade || "";
-            document.getElementById('feedback-status').innerText = "";
-            document.getElementById('modal-meta').innerText = `Session: ${student.id} | Status: ${student.status}`;
-            
-            content.innerHTML = '';
-            const labels = { 
-                q1a: { name: "Question 1a (Document)", max: 3 }, 
-                q1b: { name: "Question 1b (Cartoon/Map)", max: 2 }, 
-                q2: { name: "Question 2 (OPVL)", max: 4 }, 
-                q3: { name: "Question 3 (Compare/Contrast)", max: 6 }, 
-                q4: { name: "Question 4 (Synthesis)", max: 9 } 
-            };
-
-            Object.entries(labels).forEach(([qid, info]) => {
-                const text = student.responses?.[qid] || '';
-                const qData = student.questionAssessments?.[qid] || {};
-                const qScore = qData.score !== undefined ? qData.score : '';
-                const qFeed = qData.feedback || '';
-
-                content.innerHTML += `
-                    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                        <div class="flex justify-between items-center mb-4 border-b pb-2">
-                            <h4 class="text-blue-800 text-sm font-black uppercase tracking-widest">${info.name}</h4>
-                            <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded">Max: ${info.max}m</span>
-                        </div>
-                        <div class="font-serif text-slate-700 leading-relaxed mb-6 whitespace-pre-wrap">${text || '<span class="text-slate-300 italic">No response.</span>'}</div>
-                        <div class="bg-blue-50/50 p-4 rounded-lg border border-blue-100 flex flex-col md:flex-row gap-4">
-                            <div class="w-full md:w-24">
-                                <label class="block text-[10px] font-black text-blue-800 uppercase mb-1">Score</label>
-                                <input type="number" id="score-${qid}" value="${qScore}" min="0" max="${info.max}" class="q-score-input w-full p-2 border border-blue-200 rounded text-center font-bold text-blue-900 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="/${info.max}">
-                            </div>
-                            <div class="flex-1">
-                                <label class="block text-[10px] font-black text-blue-800 uppercase mb-1">Feedback</label>
-                                <textarea id="feedback-${qid}" class="w-full p-2 border border-blue-200 rounded text-sm text-blue-900 focus:ring-2 focus:ring-blue-500 outline-none resize-none overflow-hidden" rows="2" placeholder="Notes...">${qFeed}</textarea>
-                            </div>
-                        </div>
-                    </div>`;
+        function renderGradebook() {
+            const body = document.getElementById('gradebook-body');
+            body.innerHTML = '';
+            gradebookView.classList.remove('hidden');
+            const students = {};
+            allSubmissions.forEach(sub => {
+                if (!students[sub.studentName]) students[sub.studentName] = { assignments: [] };
+                students[sub.studentName].assignments.push(sub);
             });
+            Object.keys(students).sort().forEach(name => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td class="font-bold text-white">${name}</td><td><span class="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded">${students[name].assignments.length} Tasks</span></td><td><div class="flex flex-wrap gap-2">${students[name].assignments.map(a => `<div class="flex flex-col"><span class="text-[9px] text-slate-500 truncate w-24 uppercase font-bold">${a.assignment}</span><span class="text-xs ${a.grade ? 'text-red-400 font-bold' : 'text-slate-600 italic'}">${a.grade ? a.grade + '/24' : 'Unmarked'}</span></div>`).join('')}</div></td>`;
+                body.appendChild(row);
+            });
+        }
 
-            setTimeout(() => {
-                const scoreInputs = document.querySelectorAll('.q-score-input');
-                scoreInputs.forEach(input => {
-                    input.addEventListener('input', () => {
-                        let total = 0;
-                        scoreInputs.forEach(inp => { total += Number(inp.value) || 0; });
-                        document.getElementById('grade-input').value = total;
-                    });
-                });
-            }, 100);
-
+        async function openReview(sub) {
+            currentlyViewingId = sub.id;
+            document.getElementById('modal-student-name').textContent = sub.studentName || 'Student';
+            document.getElementById('modal-assignment').textContent = sub.assignment || 'Paper 1';
+            document.getElementById('modal-word-count').textContent = `${sub.wordCount || 0} words`;
+            document.getElementById('grade-input').value = sub.grade || '';
+            
+            // Render the 5 textboxes
+            let html = '';
+            Object.keys(qLabels).forEach(qid => {
+                html += `
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                    <label class="font-bold text-red-800 text-xs uppercase tracking-widest block mb-3">${qLabels[qid]}</label>
+                    <div class="font-serif text-lg leading-relaxed whitespace-pre-wrap min-h-[50px]">${sub.responses?.[qid] || '<span class="text-slate-400 italic">No answer</span>'}</div>
+                </div>`;
+            });
+            modalContent.innerHTML = html;
             modal.classList.remove('hidden');
+            
+            setTimeout(() => {
+                resizeCanvas(); undoStack = [];
+                if (sub.annotations) { const img = new Image(); img.onload = () => { ctx.drawImage(img, 0, 0); saveCanvasState(); }; img.src = sub.annotations; } else { saveCanvasState(); }
+            }, 100);
         }
 
-        // --- BUTTON HANDLERS ---
-        document.getElementById('send-feedback-btn').onclick = async () => {
-            if (!currentOpenStudentId) return;
-            const status = document.getElementById('feedback-status');
-            status.innerText = "Saving Assessment...";
-            
-            const questionAssessments = {};
-            ['q1a', 'q1b', 'q2', 'q3', 'q4'].forEach(qid => {
-                questionAssessments[qid] = {
-                    score: document.getElementById(`score-${qid}`).value,
-                    feedback: document.getElementById(`feedback-${qid}`).value
-                };
-            });
-
+        document.getElementById('save-grade-btn').onclick = async () => {
+            if(!currentlyViewingId) return;
+            const ind = document.getElementById('save-indicator'); ind.style.opacity = '1';
             try {
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'submissions', currentOpenStudentId), {
-                    teacherFeedback: document.getElementById('feedback-input').value,
-                    finalGrade: document.getElementById('grade-input').value,
-                    questionAssessments: questionAssessments,
-                    assessedAt: new Date().getTime()
+                await updateDoc(doc(db, 'artifacts', targetAppId, 'public', 'data', 'submissions', currentlyViewingId), {
+                    grade: document.getElementById('grade-input').value, annotations: canvas.toDataURL()
                 });
-                status.innerText = "✓ Saved & Sent!";
-                setTimeout(() => { status.innerText = ""; }, 3000);
-            } catch (e) {
-                status.innerText = "Error saving data.";
-            }
+                ind.style.opacity = '0'; renderUI();
+            } catch (e) { alert("Save failed."); }
         };
 
-        document.getElementById('close-modal').onclick = () => document.getElementById('view-modal').classList.add('hidden');
+        document.getElementById('search-input').oninput = renderUI; setInterval(renderUI, 30000);
+
+        // ZIP Exporter aggregates the 5 questions
+        document.getElementById('download-zip-btn').onclick = async () => {
+            const zip = new JSZip();
+            allSubmissions.forEach(s => {
+                let text = `STUDENT: ${s.studentName}\nASSIGNMENT: ${s.assignment}\nGRADE: ${s.grade||'N/A'}/24\n\n`;
+                Object.keys(qLabels).forEach(qid => { text += `=== ${qLabels[qid]} ===\n${s.responses?.[qid] || 'No answer'}\n\n`; });
+                zip.file(`${s.studentName.replace(/\s/g,'_')}_${s.assignment.replace(/\s/g,'_')}.txt`, text);
+            });
+            const content = await zip.generateAsync({type:"blob"});
+            const link = document.createElement("a"); link.href = URL.createObjectURL(content);
+            link.download = "IB_Essays.zip"; link.click();
+        };
 
         document.getElementById('export-btn').onclick = () => {
-            if (allData.length === 0) return;
-            let csv = "Name,Status,Total Grade,Words,Q1a,Q1b,Q2,Q3,Q4\n";
-            allData.forEach(r => {
-                csv += `"${r.studentName}","${r.status}","${r.finalGrade||''}","${r.totalWords}","${(r.responses?.q1a||'').replace(/"/g,'""')}","${(r.responses?.q1b||'').replace(/"/g,'""')}","${(r.responses?.q2||'').replace(/"/g,'""')}","${(r.responses?.q3||'').replace(/"/g,'""')}","${(r.responses?.q4||'').replace(/"/g,'""')}"\n`;
-            });
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `IB_History_Results.csv`;
-            link.click();
+            const csv = ["Name,Assignment,Grade,Q1a,Q1b,Q2,Q3,Q4"];
+            allSubmissions.forEach(s => csv.push(`"${s.studentName}","${s.assignment}","${s.grade||''}","${(s.responses?.q1a||'').replace(/"/g,'""')}","${(s.responses?.q1b||'').replace(/"/g,'""')}","${(s.responses?.q2||'').replace(/"/g,'""')}","${(s.responses?.q3||'').replace(/"/g,'""')}","${(s.responses?.q4||'').replace(/"/g,'""')}"`));
+            const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csv.join("\n")], {type: 'text/csv'}));
+            link.download = "ib_grades.csv"; link.click();
         };
-
-        // --- PRINT/DOWNLOAD LOGIC ---
-        document.getElementById('print-modal-btn').onclick = () => {
-            if(!currentStudentData) return;
-            const labels = { q1a: "Q1a", q1b: "Q1b", q2: "Q2", q3: "Q3", q4: "Q4" };
-            let html = `<html><head><title>${currentStudentData.studentName}</title><style>body{font-family:sans-serif;padding:40px;}h1{margin-bottom:0;}hr{margin:20px 0;}.q{margin-bottom:30px;}.ans{font-family:serif;background:#f9f9f9;padding:15px;border:1px solid #ddd;}.fb{color:blue;font-style:italic;margin-top:10px;}</style></head><body>`;
-            html += `<h1>${currentStudentData.studentName}</h1><p>Score: ${document.getElementById('grade-input').value}/24</p><hr>`;
-            Object.entries(labels).forEach(([qid, name]) => {
-                html += `<div class="q"><strong>${name}</strong><div class="ans">${currentStudentData.responses?.[qid] || ''}</div><div class="fb">Teacher: ${document.getElementById(`feedback-${qid}`).value}</div></div>`;
-            });
-            html += `</body></html>`;
-            const p = window.open('', '', 'height=600,width=800');
-            p.document.write(html);
-            p.document.close();
-            p.print();
-        };
-
-        // --- DOWNLOAD ALL LOGIC ---
-        document.getElementById('download-all-btn').onclick = () => {
-            if (allData.length === 0) {
-                alert("No submissions to download yet.");
-                return;
-            }
-
-            let text = `IB HISTORY EXAM - ALL SUBMISSIONS\n`;
-            text += `Generated: ${new Date().toLocaleString()}\n`;
-            text += `Total Students: ${allData.length}\n`;
-            text += `================================================================================\n\n`;
-
-            const labels = { q1a: { name: "Question 1a", max: 3 }, q1b: { name: "Question 1b", max: 2 }, q2: { name: "Question 2", max: 4 }, q3: { name: "Question 3", max: 6 }, q4: { name: "Question 4", max: 9 } };
-
-            // Ensure alphabetical order
-            const sortedData = [...allData].sort((a, b) => (a.studentName || '').localeCompare(b.studentName || ''));
-
-            sortedData.forEach((student, index) => {
-                text += `STUDENT ${index + 1}: ${student.studentName || 'Anonymous'}\n`;
-                text += `Status: ${student.status || 'Unknown'}\n`;
-                text += `Total Score: ${student.finalGrade || '--'} / 24\n`;
-                text += `Word Count: ${student.totalWords || 0}\n`;
-                text += `--------------------------------------------------------------------------------\n`;
-
-                if (student.teacherFeedback) {
-                    text += `OVERALL FEEDBACK:\n${student.teacherFeedback}\n\n`;
-                }
-
-                Object.entries(labels).forEach(([qid, info]) => {
-                    const ans = student.responses?.[qid] || 'No response.';
-                    const qData = student.questionAssessments?.[qid] || {};
-                    const score = qData.score !== undefined ? qData.score : '--';
-                    const fb = qData.feedback || '';
-                    
-                    text += `${info.name.toUpperCase()} (Score: ${score} / ${info.max})\n`;
-                    text += `ANSWER:\n${ans}\n\n`;
-                    if(fb) { text += `TEACHER NOTES:\n${fb}\n\n`; }
-                });
-
-                text += `================================================================================\n\n\n`;
-            });
-
-            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `IB_History_All_Submissions.txt`;
-            link.click();
-        };
-
-        // Run data load immediately
-        initData();
     </script>
 </body>
 </html>
